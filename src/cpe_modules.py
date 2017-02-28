@@ -4,12 +4,12 @@ import operator
 
 # Find Marks on QR Code from Source
 def findMarks(src):
-    src_grey = p2Grey(src)
+    src_grey = bgrConvert(src)
     _, thresh = cv2.threshold(src_grey, 127, 255, 0)
-    cannyImg = cv2.Canny(thresh, 100 , 200)
+    cannyImg = cv2.Canny(thresh, 100 , 200) # Use cannyImg to avoid OOR Index
     _, contours, hierarchy = cv2.findContours(cannyImg, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     hierarchy = hierarchy[0]    # Use 0th Array to avoid Value Ambiguity
-    
+
     # Find Marks
     mark = []
     for i in range(len(contours)):
@@ -20,7 +20,7 @@ def findMarks(src):
         if c >= 5:
     	    mark.append(i)
 
-    # Lable Marks for Legibility	    
+    # Label Marks for Legibility	    
     A = mark[0]
     B = mark[1]
     C = mark[2]
@@ -31,10 +31,10 @@ def findMarks(src):
     for i in contours:
         mu = cv2.moments(i)
         if mu["m00"] == 0:
-            mc.append((0,0))
+            mc.append((0,0))    #Avoid dividing by 0
         else:
             mc.append(np.array((int(mu["m10"] / mu["m00"]), int(mu["m01"] / mu["m00"]))))
-    
+
     # Find Mark Positions
     if len(mark) >= 3:
         AB = p2pDistance(mc[A],mc[B])
@@ -93,7 +93,7 @@ def findMarks(src):
     return bounds       #Bounds are ordered [UL, UR, LR, LL]
     
 # Convert pattern to greyscale
-def p2Grey(src):
+def bgrConvert(src):
     src_grey = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
     return src_grey
 
