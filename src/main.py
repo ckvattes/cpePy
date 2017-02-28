@@ -22,11 +22,10 @@ ax.set_zlabel('Z-axis')
 
 # Read SRC Pattern and Img (test1)
 src = cv2.imread("../static/input/pattern.jpg")
-img = cv2.imread("../static/img/IMG_6719.jpg")
+img = cv2.imread("../static/img/IMG_6719.JPG")
 
 # Find Marks from QR Code
-bounds = (cpe.findMarks(src)).astype(float)
-print bounds
+bounds = (cpe.findMarks(img)).astype(float)
 
 # Display Output
 # plt.show()        # Disabled for non-Xwindow use
