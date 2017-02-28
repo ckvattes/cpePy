@@ -8,7 +8,6 @@ import numpy as np
 from matplotlib import image as mpimg, pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import cpe_modules as cpe
-from cpe_modules import Arrow3D
 
 # Set Figure, Axes, and Image Variables
 fig = plt.figure()
