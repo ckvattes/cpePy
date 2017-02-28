@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import operator
-
+    
 # Find Marks on QR Code from Source
 def findMarks(src):
     src_grey = bgrConvert(src)
@@ -91,6 +91,42 @@ def findMarks(src):
     bounds = np.array([topV[0], rightV[0], N, bttmV[0]])
     return bounds       #Bounds are ordered [UL, UR, LR, LL]
     
+# Camera Celibration and 3D Reconstruction
+def reconstruct(bounds, shape):
+    # Object Points (calibration points) assumed as src image size at 0, 0, 0
+    objPoints = np.array([[-4.4, 4.4, 0],
+                          [4.4, 4.4, 0],
+                          [4.4, -4.4, 0],
+                          [-4.4, -4.4, 0]]).astype(float)
+    # Image Points = Bounds (corners of src QR code)
+    imgPoints = bounds.astype(float)
+    
+    # Camera Matrix A from cv2 Docs
+    fx, fy = shape[1], shape[0]
+    cx, cy = (fx / 2), (fy / 2)
+    A = np.array([[fx, 0, cx],
+                  [0, fy, cy],
+                  [0, 0, 1]]).astype(float)
+                  
+    # Distortion Coefficients assumed as 0
+    distCoeffs = np.array([[0],
+                           [0],
+                           [0],
+                           [0]]).astype(float)
+    
+    # Finds an object pose from 3D-2D point correspondences
+    _, rvec, tvec = cv2.solvePnP(objPoints, imgPoints, A, distCoeffs)
+    
+    # Convert Rotation Vector to Rotation Matrix
+    rmat, _ = cv2.Rodrigues(rvec)
+    
+    # Extrapolate Camera Pose (P) and Orientation (V) from rMat and tVec
+    P = (np.dot(rmat, tvec)).squeeze()
+    V = np.dot(rmat, np.array([0, 0, 1]))
+    # P = (np.dot(-rmat.T, tvec)).T
+    # V = np.dot(rmat.T, np.array([0, 0, 1]).T)
+    return P, V    
+
 # Convert pattern to greyscale
 def bgrConvert(src):
     src_grey = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
@@ -163,4 +199,3 @@ def brCorner(r1, r2, b1, b2):
     t = np.cross((b1 - r1), v2) / s
     N = np.array(np.int0(r1 + (t * v1)))
     return N
-
