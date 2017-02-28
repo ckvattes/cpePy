@@ -5,7 +5,7 @@ import operator
 # Find Marks on QR Code from Source
 def findMarks(src):
     src_grey = bgrConvert(src)
-    _, thresh = cv2.threshold(src_grey, 127, 255, 0)
+    _, thresh = cv2.threshold(src_grey, 200, 255, 0)    # 127 too low for lower threshold
     cannyImg = cv2.Canny(thresh, 100 , 200) # Use cannyImg to avoid OOR Index
     _, contours, hierarchy = cv2.findContours(cannyImg, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     hierarchy = hierarchy[0]    # Use 0th Array to avoid Value Ambiguity
@@ -19,7 +19,6 @@ def findMarks(src):
     		c += 1
         if c >= 5:
     	    mark.append(i)
-
     # Label Marks for Legibility	    
     A = mark[0]
     B = mark[1]
