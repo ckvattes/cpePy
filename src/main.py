@@ -26,7 +26,6 @@ img = cv2.imread("../static/img/IMG_6719.jpg")
 
 # Find Marks from QR Code
 bounds = (cpe.findMarks(src)).astype(float)
-b2 = np.array(bounds, dtype="double")
 print bounds
 
 # Display Output
