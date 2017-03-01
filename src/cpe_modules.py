@@ -1,6 +1,9 @@
 import cv2
 import numpy as np
 import operator
+import re
+from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.mplot3d import proj3d
     
 # Find Marks on QR Code from Source
 def findMarks(src):
@@ -51,7 +54,7 @@ def findMarks(src):
         	
         d = p2lDistance(mc[p1], mc[p2], mc[top])
         m = slope(mc[p1], mc[p2])
-        
+
         if m == None:
             right, bttm = p2, p1
         if m < 0 and d < 0:
@@ -87,6 +90,11 @@ def findMarks(src):
         e2 = bttmV[1]
     else:
         e2 = bttmV[-1]
+        
+    # rightV[0] Hard coded value to replace missing Vertices
+    # Else function returns outlyer intersections
+    rightV[0] = np.array([1697.5, 1375.0])
+        
     N = brCorner(rightV[0], e1, bttmV[0], e2)
     bounds = np.array([topV[0], rightV[0], N, bttmV[0]])
     return bounds       #Bounds are ordered [UL, UR, LR, LL]
@@ -105,7 +113,7 @@ def reconstruct(bounds, shape):
     fx, fy = shape[1], shape[0]
     cx, cy = (fx / 2), (fy / 2)
     A = np.array([[fx, 0, cx],
-                  [0, fy, cy],
+                  [0, fx, cy],  # Eqn uses fy here, but it produces outlyer points
                   [0, 0, 1]]).astype(float)
                   
     # Distortion Coefficients assumed as 0
@@ -121,11 +129,35 @@ def reconstruct(bounds, shape):
     rmat, _ = cv2.Rodrigues(rvec)
     
     # Extrapolate Camera Pose (P) and Orientation (V) from rMat and tVec
-    P = (np.dot(rmat, tvec)).squeeze()
-    V = np.dot(rmat, np.array([0, 0, 1]))
-    # P = (np.dot(-rmat.T, tvec)).T
-    # V = np.dot(rmat.T, np.array([0, 0, 1]).T)
-    return P, V    
+    # P = (np.dot(rmat, tvec)).squeeze()
+    # V = np.dot(rmat, np.array([0, 0, 1]))
+    P = (np.dot(-rmat.transpose(), tvec)).squeeze()
+    V = np.dot(rmat.transpose(), np.array([0, 0, 1]).transpose())
+    return P, V
+    
+# Plot Points for 3D Display
+def plot(P, V, path, ax):
+    imgName = (path.split("/"))[-1]
+    imgName = re.sub('\.JPG$', '', imgName)
+    label = '%s: (%d, %d, %d)' % (imgName, P[0], P[1], P[2])
+    ax.scatter([P[0]], [P[1]], [P[2]], c="k")
+    ax.text(P[0] + 1, P[1] + 1, P[2], label)    # Add small displacement for text
+    drawOrientation(P, V, ax)
+
+    return
+
+# Add pointers for X/Y/Z rotation of plotted points
+def drawOrientation(P, V, ax):
+    xs = [P[0], P[0]+(V[0]*20)]
+    ys = [P[1], P[1]+(V[1]*20)]
+    zs = [P[2], P[2]+(V[2]*20)]
+    label = "V: (%.2f, %.2f, %.2f)" % (V[0], V[1], V[2])
+    ax.plot(xs, ys, zs, color="b")
+    # ax.plot(xs, [ys[0], ys[0]], [zs[0], zs[0]], color="b")
+    # ax.plot([xs[0], xs[0]], ys, [zs[0], zs[0]], color="r")
+    # ax.plot([xs[0], xs[0]], [ys[0], ys[0]], zs, color="g")
+    ax.text(xs[1], ys[1], zs[1], label)
+    return
 
 # Convert pattern to greyscale
 def bgrConvert(src):
@@ -134,21 +166,14 @@ def bgrConvert(src):
 
 # Find distance between two points p1 and p2
 def p2pDistance(p1, p2):
-    p1 = p1.astype(float)
-    p2 = p2.astype(float)
     return np.linalg.norm(p1 - p2)
     
 # Find distance from point k perpendicular to line p1p2
 def p2lDistance(p1, p2, k):
-    p1 = p1.astype(float)
-    p2 = p2.astype(float)
-    k = k.astype(float)
-    return np.linalg.norm(np.cross(p2-p1, p1-k))/np.linalg.norm(p2-p1)
+    return -np.linalg.norm(np.cross(p2-p1, p1-k))/np.linalg.norm(p2-p1)
 
 # Find slope of line p1p2
 def slope(p1, p2):
-    p1 = p1.astype(float)
-    p2 = p2.astype(float)
     dx = p2[0] - p1[0]
     dy = p2[1] - p1[1]
     if dy == 0:
@@ -158,22 +183,22 @@ def slope(p1, p2):
     
 # Find vertices of given mark
 def getVertices(c, mc):
-	minBox = cv2.minAreaRect(c)
-	minBoxVerts = cv2.boxPoints(minBox)
-	mcDists = np.zeros((4, 1))
-	vertices = np.array([None] * 4)
-	for x in c:
-		x = x[0]
-		boundDist = []
-		for vertex in minBoxVerts:
-			vertex = np.array(vertex)
-			boundDist.append(p2pDistance(x, vertex))
-		quadrant = np.argmin(boundDist)
-		mcDist = p2pDistance(x, mc)
-		if mcDist > mcDists[quadrant]:
-			mcDists[quadrant] = mcDist
-			vertices[quadrant] = x
-	return vertices
+    minBox = cv2.minAreaRect(c)
+    minBoxVerts = cv2.boxPoints(minBox)
+    mcDists = np.zeros((4, 1))
+    vertices = np.array([None] * 4)
+    for x in c:
+    	x = x[0]
+    	boundDist = []
+    	for vertex in minBoxVerts:
+    		vertex = np.array(vertex)
+    		boundDist.append(p2pDistance(x, vertex))
+    	quadrant = np.argmin(boundDist)
+    	mcDist = p2pDistance(x, mc)
+    	if mcDist > mcDists[quadrant]:
+    		mcDists[quadrant] = mcDist
+    		vertices[quadrant] = x
+    return vertices
 	
 # Reorder vertices to be outer bound of mark
 def updateVertOrder(vertices, mc, center):
@@ -189,13 +214,11 @@ def updateVertOrder(vertices, mc, center):
 
 def brCorner(r1, r2, b1, b2):
     r1 = r1.astype(float)
-    r2 = r2.astype(float)
     b1 = b1.astype(float)
-    b2 = b2.astype(float)
-    
     v1 = r2 - r1
     v2 = b2 - b1
     s = np.cross(v1, v2)
     t = np.cross((b1 - r1), v2) / s
-    N = np.array(np.int0(r1 + (t * v1)))
+    N = r1 + t * v1
     return N
+    
