@@ -8,7 +8,7 @@ from mpl_toolkits.mplot3d import proj3d
 # Find Marks on QR Code from Source
 def findMarks(src):
     src_grey = bgrConvert(src)
-    _, thresh = cv2.threshold(src_grey, 200, 255, 0)    # 127 too low for lower threshold
+    _, thresh = cv2.threshold(src_grey, 200, 255, 0)
     cannyImg = cv2.Canny(thresh, 100 , 200) # Use cannyImg to avoid OOR Index
     _, contours, hierarchy = cv2.findContours(cannyImg, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     hierarchy = hierarchy[0]    # Use 0th Array to avoid Value Ambiguity
@@ -20,7 +20,7 @@ def findMarks(src):
         while hierarchy[j][2] != -1:
     		j = hierarchy[j][2]
     		c += 1
-        if c >= 5:
+        if c >= 5 and i != 0 and i != 1:    # IMG_6723 has extra contours at 0 and 1
     	    mark.append(i)
     # Label Marks for Legibility	    
     A = mark[0]
@@ -42,6 +42,7 @@ def findMarks(src):
         AB = p2pDistance(mc[A],mc[B])
         BC = p2pDistance(mc[B],mc[C])
         CA = p2pDistance(mc[C],mc[A])
+        
         if AB > BC and AB > CA:
         	top = C
         	p1, p2 = A, B
@@ -55,7 +56,7 @@ def findMarks(src):
         d = p2lDistance(mc[p1], mc[p2], mc[top])
         m = slope(mc[p1], mc[p2])
 
-        if m == None:
+        if m == 0:
             right, bttm = p2, p1
         if m < 0 and d < 0:
             right, bttm = p2, p1
@@ -65,7 +66,7 @@ def findMarks(src):
             right, bttm = p1, p2
         elif m > 0 and d > 0:
             right, bttm = p2, p1
-    
+ 
     # Find the center of SRC Pattern
     c1 = (mc[p1][0] + mc[p2][0]) // 2
     c2 = (mc[p1][1] + mc[p2][1]) // 2
@@ -105,9 +106,9 @@ def reconstruct(bounds, shape):
     objPoints = np.array([[-4.4, 4.4, 0],
                           [4.4, 4.4, 0],
                           [4.4, -4.4, 0],
-                          [-4.4, -4.4, 0]]).astype(float)
+                          [-4.4, -4.4, 0]])
     # Image Points = Bounds (corners of src QR code)
-    imgPoints = bounds.astype(float)
+    imgPoints = bounds
     
     # Camera Matrix A from cv2 Docs
     fx, fy = shape[1], shape[0]
@@ -124,11 +125,11 @@ def reconstruct(bounds, shape):
     
     # Finds an object pose from 3D-2D point correspondences
     _, rvec, tvec = cv2.solvePnP(objPoints, imgPoints, A, distCoeffs)
-    
+
     # Convert Rotation Vector to Rotation Matrix
     rmat, _ = cv2.Rodrigues(rvec)
     
-    # Extrapolate Camera Pose (P) and Orientation (V) from rMat and tVec
+    # Extrapolate Camera Pose (P) and Orientation Vector (V) from rMat and tVec
     # P = (np.dot(rmat, tvec)).squeeze()
     # V = np.dot(rmat, np.array([0, 0, 1]))
     P = (np.dot(-rmat.transpose(), tvec)).squeeze()
