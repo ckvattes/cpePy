@@ -14,9 +14,9 @@ size = 8.8  # This is kept at full-scale for visibility
 src = cv2.flip(cv2.imread("../static/input/pattern.jpg"), 0)    #Flip fixes rotation problem
 imgPaths = ["../static/img/IMG_6719.JPG",
             "../static/img/IMG_6720.JPG",
-            # "../static/img/IMG_6721.JPG",
-            # "../static/img/IMG_6723.JPG",
-            # "../static/img/IMG_6725.JPG",
+            "../static/img/IMG_6721.JPG",
+            "../static/img/IMG_6723.JPG",
+            "../static/img/IMG_6725.JPG",
             "../static/img/IMG_6726.JPG",
             "../static/img/IMG_6727.JPG"
            ]
