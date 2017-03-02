@@ -61,6 +61,9 @@ for imgPath in imgPaths:
     
 # Display Output
 # plt.show()        # Disabled for non-Xwindow use
+
+# Save output to file
 plt.savefig("../static/output/display.svg")
+# ///
 print "Output saved as %s" % (outPath)
 print "DONE"
