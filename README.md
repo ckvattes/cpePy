@@ -3,9 +3,9 @@ Camera Pose Estimator (Python) - Coding Challenge
 
 Project was written in Python 2.7.6 using Cloud9 IDE, so there are some workarounds built into the code.
 Included modules are:
-  *OpenCV v2.4.11
-  *Numpy
-  *MatPlotLib
+  * OpenCV v2.4.11
+  * Numpy
+  * MatPlotLib
   
 All code is included in **SRC** folder.
 All images (including output file) are included in **STATIC** folder.
