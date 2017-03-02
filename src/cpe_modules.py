@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 import operator
 import re
-from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d import proj3d
     
 # Find Marks on QR Code from Source
@@ -68,9 +67,9 @@ def findMarks(src):
             right, bttm = p2, p1
  
     # Find the center of SRC Pattern
-    c1 = (mc[p1][0] + mc[p2][0]) // 2
-    c2 = (mc[p1][1] + mc[p2][1]) // 2
-    center = np.array(c1, c2)
+    c1 = (mc[right][0] + mc[bttm][0]) // 2
+    c2 = (mc[right][1] + mc[bttm][1]) // 2
+    center = np.array((c1, c2))
 
 	# Find Vertices of SRC Pattern Markers
     topV = getVertices(contours[top], mc[top])
@@ -91,16 +90,12 @@ def findMarks(src):
         e2 = bttmV[1]
     else:
         e2 = bttmV[-1]
-        
-    # rightV[0] Hard coded value to replace missing Vertices
-    # Else function returns outlyer intersections
-    rightV[0] = np.array([1697.5, 1375.0])
-        
+
     N = brCorner(rightV[0], e1, bttmV[0], e2)
     bounds = np.array([topV[0], rightV[0], N, bttmV[0]])
     return bounds       #Bounds are ordered [UL, UR, LR, LL]
     
-# Camera Celibration and 3D Reconstruction
+# Camera Calibration and 3D Reconstruction
 def reconstruct(bounds, shape):
     # Object Points (calibration points) assumed as src image size at 0, 0, 0
     objPoints = np.array([[-4.4, 4.4, 0],
@@ -108,7 +103,7 @@ def reconstruct(bounds, shape):
                           [4.4, -4.4, 0],
                           [-4.4, -4.4, 0]])
     # Image Points = Bounds (corners of src QR code)
-    imgPoints = bounds
+    imgPoints = bounds.astype(float)
     
     # Camera Matrix A from cv2 Docs
     fx, fy = shape[1], shape[0]
@@ -130,21 +125,22 @@ def reconstruct(bounds, shape):
     rmat, _ = cv2.Rodrigues(rvec)
     
     # Extrapolate Camera Pose (P) and Orientation Vector (V) from rMat and tVec
-    # P = (np.dot(rmat, tvec)).squeeze()
-    # V = np.dot(rmat, np.array([0, 0, 1]))
+    # Transformations correct placement of P and V in 3d space
     P = (np.dot(-rmat.transpose(), tvec)).squeeze()
     V = np.dot(rmat.transpose(), np.array([0, 0, 1]).transpose())
+    if P[2] < 0:    # 6720 and 6725 were transformed incorrectly
+        unTransform(P)
+        unTransform(V)
     return P, V
     
 # Plot Points for 3D Display
 def plot(P, V, path, ax):
     imgName = (path.split("/"))[-1]
     imgName = re.sub('\.JPG$', '', imgName)
-    label = '%s: (%d, %d, %d)' % (imgName, P[0], P[1], P[2])
+    label = '%s: (%d, %d, %d) | V: (%.2f, %.2f, %.2f)' % (imgName, P[0], P[1], P[2], V[0], V[1], V[2])
     ax.scatter([P[0]], [P[1]], [P[2]], c="k")
     ax.text(P[0] + 1, P[1] + 1, P[2], label)    # Add small displacement for text
     drawOrientation(P, V, ax)
-
     return
 
 # Add pointers for X/Y/Z rotation of plotted points
@@ -152,12 +148,10 @@ def drawOrientation(P, V, ax):
     xs = [P[0], P[0]+(V[0]*20)]
     ys = [P[1], P[1]+(V[1]*20)]
     zs = [P[2], P[2]+(V[2]*20)]
-    label = "V: (%.2f, %.2f, %.2f)" % (V[0], V[1], V[2])
     ax.plot(xs, ys, zs, color="b")
     # ax.plot(xs, [ys[0], ys[0]], [zs[0], zs[0]], color="b")
     # ax.plot([xs[0], xs[0]], ys, [zs[0], zs[0]], color="r")
     # ax.plot([xs[0], xs[0]], [ys[0], ys[0]], zs, color="g")
-    ax.text(xs[1], ys[1], zs[1], label)
     return
 
 # Convert pattern to greyscale
@@ -181,6 +175,12 @@ def slope(p1, p2):
     	return None
     else:
 		return (dy / dx)
+	
+# Correct transformation errors for P and V (6720 & 6725)	
+def unTransform(L):
+    tmpA, tmpB, tmpC = L[0], L[1], L[2]
+    L[0], L[1], L[2] = -tmpB, -tmpA, -tmpC
+    return L
     
 # Find vertices of given mark
 def getVertices(c, mc):
@@ -213,6 +213,7 @@ def updateVertOrder(vertices, mc, center):
         outer = d[1][0]
     return np.append(vertices[outer:], vertices[:outer])
 
+# Return Intersection of R1R2 and B1B2 as Point N
 def brCorner(r1, r2, b1, b2):
     r1 = r1.astype(float)
     b1 = b1.astype(float)
@@ -220,6 +221,7 @@ def brCorner(r1, r2, b1, b2):
     v2 = b2 - b1
     s = np.cross(v1, v2)
     t = np.cross((b1 - r1), v2) / s
-    N = r1 + t * v1
+    # N = r1 + t * v1
+    N = np.array((r1 + t * v1).astype(int)) # Truncate decimals
     return N
     
